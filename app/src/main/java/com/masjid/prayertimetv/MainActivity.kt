@@ -1,179 +1,125 @@
 package com.masjid.prayertimetv
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-data class PrayerTime(val name: String, val time: String)
+data class Prayer(val name:String,val hour:Int,val minute:Int,val pm:Boolean)
+private val Defaults=listOf(
+ Prayer("Fajr",5,12,false),Prayer("Dhuhr",12,28,true),Prayer("Asr",4,3,true),
+ Prayer("Maghrib",6,9,true),Prayer("Isha",7,45,true))
+private val Bg=Color(0xFF061A36); private val Panel=Color(0xFF102A4D)
+private val Blue=Color(0xFF1688FF); private val White=Color.White; private val Dim=Color(0xFFB9C9DE)
 
-private val Bg = Color(0xFF061A36)
-private val Panel = Color(0xFF102A4D)
-private val Panel2 = Color(0xFF16365E)
-private val Blue = Color(0xFF1688FF)
-private val TextMain = Color.White
-private val TextDim = Color(0xFFB9C9DE)
-
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent { PrayerTimeApp() }
-    }
+class MainActivity:ComponentActivity(){
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);setContent{PrayerTimeApp()}}
 }
 
 @Composable
-fun PrayerTimeApp() {
-    val defaults = remember {
-        listOf(
-            PrayerTime("Fajr", "05:12 AM"),
-            PrayerTime("Dhuhr", "12:28 PM"),
-            PrayerTime("Asr", "04:03 PM"),
-            PrayerTime("Maghrib", "06:09 PM"),
-            PrayerTime("Isha", "07:45 PM")
-        )
-    }
-    var prayers by remember { mutableStateOf(defaults) }
-    var selected by remember { mutableIntStateOf(0) }
-    var saved by remember { mutableStateOf(false) }
-
-    MaterialTheme {
-        Box(
-            modifier = Modifier.fillMaxSize().background(Bg).padding(horizontal = 46.dp, vertical = 28.dp)
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                Text("Set Prayer Times", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "Change the time for each of the 5 daily prayers",
-                    color = TextDim, fontSize = 20.sp,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 20.dp)
-                )
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    itemsIndexed(prayers) { index, prayer ->
-                        PrayerRow(
-                            prayer = prayer,
-                            selected = selected == index,
-                            onFocus = { selected = index },
-                            onChange = { delta ->
-                                prayers = prayers.toMutableList().also {
-                                    it[index] = it[index].copy(time = changeTime(it[index].time, delta))
-                                }
-                                saved = false
-                            }
-                        )
-                    }
-                }
-
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    TvButton("Reset to Default", Modifier.weight(1f)) {
-                        prayers = defaults
-                        saved = false
-                    }
-                    TvButton("Save Changes", Modifier.weight(1.25f), primary = true) {
-                        saved = true
-                    }
-                }
-
-                Text(
-                    if (saved) "✓ Changes saved" else "↑ ↓ Change time   •   ← → Select   •   OK Save",
-                    color = if (saved) Color(0xFF7DFFB2) else TextDim,
-                    fontSize = 17.sp,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp)
-                )
-            }
-        }
-    }
+private fun PrayerTimeApp(){
+ val ctx=androidx.compose.ui.platform.LocalContext.current
+ val prefs=remember{ctx.getSharedPreferences("prayer_settings",Context.MODE_PRIVATE)}
+ fun load()=Defaults.mapIndexed{i,p->p.copy(prefs.getInt("h$i",p.hour),prefs.getInt("m$i",p.minute),prefs.getBoolean("p$i",p.pm))}
+ var prayers by remember{mutableStateOf(load())}
+ var page by remember{mutableIntStateOf(0)}
+ var saved by remember{mutableStateOf(false)}
+ BackHandler(enabled=page!=0){page=0}
+ Row(Modifier.fillMaxSize().background(Bg)){
+  Sidebar(page){page=it}
+  Box(Modifier.weight(1f).fillMaxHeight().padding(28.dp)){when(page){
+   0->PrayerEditor(prayers,{i,p->prayers=prayers.toMutableList().also{it[i]=p};saved=false},{
+    prayers.forEachIndexed{i,p->prefs.edit().putInt("h$i",p.hour).putInt("m$i",p.minute).putBoolean("p$i",p.pm).apply()};saved=true},{
+    prayers=Defaults;saved=false},{
+    prayers=load();saved=false},saved)
+   1->SimplePage("Date & Time","Set the TV date and clock used by the mosque display.")
+   2->SimplePage("Display","Display settings can be added here. Use OK to select an option.")
+   3->SimplePage("Audio","Audio settings can be added here. Use OK to select an option.")
+   4->SimplePage("Background","Background images are disabled for this clean settings interface.")
+   5->SimplePage("Announcement","Announcement text settings can be added here.")
+   else->SimplePage("About","Masjid Prayer Time TV\nVersion 1.0")
+  }}
+ }
 }
 
 @Composable
-private fun PrayerRow(
-    prayer: PrayerTime,
-    selected: Boolean,
-    onFocus: () -> Unit,
-    onChange: (Int) -> Unit
-) {
-    var focused by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(82.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(if (selected || focused) Panel2 else Panel)
-            .border(3.dp, if (focused) Blue else Color(0x335C86B5), RoundedCornerShape(18.dp))
-            .onFocusChanged {
-                focused = it.isFocused
-                if (it.isFocused) onFocus()
-            }
-            .focusable()
-            .onKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                when (event.key) {
-                    Key.DirectionUp -> { onChange(+60); true }
-                    Key.DirectionDown -> { onChange(-60); true }
-                    Key.DirectionLeft -> { onChange(-1); true }
-                    Key.DirectionRight -> { onChange(+1); true }
-                    else -> false
-                }
-            }
-            .padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(prayer.name, color = TextMain, fontSize = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-        Text("−", color = TextDim, fontSize = 30.sp, modifier = Modifier.padding(horizontal = 20.dp))
-        Text(prayer.time, color = TextMain, fontSize = 31.sp, fontWeight = FontWeight.Bold)
-        Text("+", color = TextDim, fontSize = 30.sp, modifier = Modifier.padding(horizontal = 20.dp))
-    }
+private fun Sidebar(page:Int,onPage:(Int)->Unit){
+ val items=listOf("⚙  Prayer Times","▦  Date & Time","▣  Display","◖  Audio","▧  Background","▤  Announcement","ⓘ  About")
+ Column(Modifier.width(225.dp).fillMaxHeight().background(Color(0xFF071B35)).padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Spacer(Modifier.height(8.dp))
+  items.forEachIndexed{i,label->
+   FocusButton(label,Modifier.fillMaxWidth().height(52.dp),primary=page==i){onPage(i)}
+  }
+ }
 }
 
 @Composable
-private fun TvButton(label: String, modifier: Modifier = Modifier, primary: Boolean = false, onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(64.dp).onFocusChanged { focused = it.isFocused },
-        shape = RoundedCornerShape(16.dp),
-        color = if (primary) Blue else Panel,
-        border = if (focused) ButtonDefaults.outlinedButtonBorder else null
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(label, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-        }
+private fun PrayerEditor(prayers:List<Prayer>,change:(Int,Prayer)->Unit,save:()->Unit,reset:()->Unit,cancel:()->Unit,saved:Boolean){
+ Column(Modifier.fillMaxSize()){
+  Text("♜  Set Prayer Times",fontSize=36.sp,color=White,fontWeight=FontWeight.Bold)
+  Text("Change the time for each of the 5 prayers",fontSize=18.sp,color=Dim,modifier=Modifier.padding(start=55.dp,top=2.dp,bottom=15.dp))
+  Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(7.dp)){
+   prayers.forEachIndexed{i,p->
+    val card=when(i){0->Color(0xFF18588A);1->Color(0xFF245C86);2->Color(0xFF806137);3->Color(0xFF914638);else->Color(0xFF352B85)}
+    Row(Modifier.fillMaxWidth().weight(1f).background(card,RoundedCornerShape(15.dp)).padding(horizontal=13.dp),verticalAlignment=Alignment.CenterVertically){
+     Text(when(i){0->"☀";1->"☼";2->"◕";3->"☀";else->"☾"},fontSize=30.sp,color=White,modifier=Modifier.width(58.dp))
+     Text(p.name,Modifier.weight(1f),color=White,fontSize=23.sp,fontWeight=FontWeight.Bold)
+     Stepper(String.format("%02d",p.hour),{change(i,p.copy(hour=if(p.hour==12)1 else p.hour+1))},{change(i,p.copy(hour=if(p.hour==1)12 else p.hour-1))})
+     Text(":",color=White,fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
+     Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))})
+     Spacer(Modifier.width(10.dp))
+     FocusButton(if(p.pm)"PM" else "AM",Modifier.width(68.dp).height(52.dp)){change(i,p.copy(pm=!p.pm))}
     }
+   }
+  }
+  Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+   FocusButton("↺  Reset to Default",Modifier.weight(1f).height(55.dp)){reset()}
+   FocusButton(if(saved)"✓  Saved" else "✓  Save Changes",Modifier.weight(1.25f).height(55.dp),true){save()}
+   FocusButton("✕  Cancel",Modifier.weight(1f).height(55.dp)){cancel()}
+  }
+  Text(if(saved)"Changes saved successfully" else "↑ ↓ change  •  ← → move between controls  •  OK select",color=if(saved)Color(0xFF7DFFB2) else Dim,fontSize=15.sp,modifier=Modifier.align(Alignment.CenterHorizontally).padding(top=8.dp))
+ }
 }
 
-private fun changeTime(value: String, minutesDelta: Int): String {
-    val clean = value.removeSuffix(" AM").removeSuffix(" PM")
-    val parts = clean.split(":")
-    var h = parts[0].toInt()
-    val m = parts[1].toInt()
-    val pm = value.endsWith("PM")
-    var total = h % 12 * 60 + m + minutesDelta
-    total = ((total % 720) + 720) % 720
-    h = total / 60
-    val newH = if (h == 0) 12 else h
-    return String.format("%02d:%02d %s", newH, total % 60, if (pm) "PM" else "AM")
+@Composable
+private fun Stepper(value:String,up:()->Unit,down:()->Unit){
+ Column(Modifier.width(78.dp).background(Color(0xDD0A2345),RoundedCornerShape(10.dp)),horizontalAlignment=Alignment.CenterHorizontally){
+  SmallButton("⌃",up);Text(value,color=White,fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.height(27.dp),textAlign=TextAlign.Center)
+  SmallButton("⌄",down)
+ }
+}
+@Composable private fun SmallButton(label:String,onClick:()->Unit){FocusButton(label,Modifier.fillMaxWidth().height(18.dp),false,onClick,font=16.sp)}
+@Composable private fun FocusButton(label:String,modifier:Modifier,primary:Boolean=false,onClick:()->Unit,font: androidx.compose.ui.unit.TextUnit=18.sp){
+ var focused by remember{mutableStateOf(false)}
+ Surface(onClick=onClick,modifier=modifier.onFocusChanged{focused=it.isFocused}.focusable(),shape=RoundedCornerShape(11.dp),
+  color=if(primary)Blue else if(focused)Color(0xFF315E8C) else Color(0xCC132E50),
+  border=if(focused)BorderStroke(2.dp,White) else BorderStroke(1.dp,Color(0x334D78A5))){
+  Box(contentAlignment=Alignment.Center){Text(label,color=White,fontSize=font,fontWeight=FontWeight.Bold)}
+ }
+}
+
+@Composable private fun SimplePage(title:String,description:String){
+ Column(Modifier.fillMaxSize().padding(20.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally){
+  Text(title,color=White,fontSize=38.sp,fontWeight=FontWeight.Bold)
+  Spacer(Modifier.height(15.dp));Text(description,color=Dim,fontSize=20.sp,textAlign=TextAlign.Center)
+  Spacer(Modifier.height(24.dp));Text("Press BACK to return to Prayer Times",color=Dim,fontSize=16.sp)
+ }
 }
