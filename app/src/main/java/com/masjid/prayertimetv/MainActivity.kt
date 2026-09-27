@@ -15,6 +15,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
@@ -42,11 +45,18 @@ private fun PrayerTimeApp(){
  var prayers by remember{mutableStateOf(load())}
  var page by remember{mutableIntStateOf(0)}
  var saved by remember{mutableStateOf(false)}
+ val prayerFocus = remember { List(5) { FocusRequester() } }
+ LaunchedEffect(page) {
+  if (page == 0) {
+   kotlinx.coroutines.yield()
+   prayerFocus[0].requestFocus()
+  }
+ }
  BackHandler(enabled=page!=0){page=0}
  Row(Modifier.fillMaxSize().background(Bg)){
-  Sidebar(page){page=it}
+  Sidebar(page){page=it; if(it==0){ prayerFocus[0].requestFocus() }}
   Box(Modifier.weight(1f).fillMaxHeight().padding(28.dp)){when(page){
-   0->PrayerEditor(prayers,{i,p->prayers=prayers.toMutableList().also{it[i]=p};saved=false},{
+   0->PrayerEditor(prayers,prayerFocus,{i,p->prayers=prayers.toMutableList().also{it[i]=p};saved=false},{
     prayers.forEachIndexed{i,p->prefs.edit().putInt("h$i",p.hour).putInt("m$i",p.minute).putBoolean("p$i",p.pm).apply()};saved=true},{
     prayers=Defaults;saved=false},{
     prayers=load();saved=false},saved)
@@ -72,7 +82,7 @@ private fun Sidebar(page:Int,onPage:(Int)->Unit){
 }
 
 @Composable
-private fun PrayerEditor(prayers:List<Prayer>,change:(Int,Prayer)->Unit,save:()->Unit,reset:()->Unit,cancel:()->Unit,saved:Boolean){
+private fun PrayerEditor(prayers:List<Prayer>,focusers:List<FocusRequester>,change:(Int,Prayer)->Unit,save:()->Unit,reset:()->Unit,cancel:()->Unit,saved:Boolean){
  Column(Modifier.fillMaxSize()){
   Text("♜  Set Prayer Times",fontSize=36.sp,color=White,fontWeight=FontWeight.Bold)
   Text("Change the time for each of the 5 prayers",fontSize=18.sp,color=Dim,modifier=Modifier.padding(start=55.dp,top=2.dp,bottom=15.dp))
@@ -82,9 +92,9 @@ private fun PrayerEditor(prayers:List<Prayer>,change:(Int,Prayer)->Unit,save:()-
     Row(Modifier.fillMaxWidth().weight(1f).background(card,RoundedCornerShape(15.dp)).padding(horizontal=13.dp),verticalAlignment=Alignment.CenterVertically){
      Text(when(i){0->"☀";1->"☼";2->"◕";3->"☀";else->"☾"},fontSize=30.sp,color=White,modifier=Modifier.width(58.dp))
      Text(p.name,Modifier.weight(1f),color=White,fontSize=23.sp,fontWeight=FontWeight.Bold)
-     Stepper(String.format("%02d",p.hour),{change(i,p.copy(hour=if(p.hour==12)1 else p.hour+1))},{change(i,p.copy(hour=if(p.hour==1)12 else p.hour-1))})
+     Stepper(String.format("%02d",p.hour),{change(i,p.copy(hour=if(p.hour==12)1 else p.hour+1))},{change(i,p.copy(hour=if(p.hour==1)12 else p.hour-1))},focusers[i],if(i<4)focusers[i+1] else null,if(i<4)focusers[i+1] else null)
      Text(":",color=White,fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
-     Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))})
+     Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))},null,if(i<4)focusers[i+1] else null,focusers[i])
      Spacer(Modifier.width(10.dp))
      FocusButton(if(p.pm)"PM" else "AM",Modifier.width(68.dp).height(52.dp),onClick={change(i,p.copy(pm=!p.pm))})
     }
@@ -100,13 +110,40 @@ private fun PrayerEditor(prayers:List<Prayer>,change:(Int,Prayer)->Unit,save:()-
 }
 
 @Composable
-private fun Stepper(value:String,up:()->Unit,down:()->Unit){
- Column(Modifier.width(78.dp).background(Color(0xDD0A2345),RoundedCornerShape(10.dp)),horizontalAlignment=Alignment.CenterHorizontally){
-  SmallButton("⌃",up);Text(value,color=White,fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.height(27.dp),textAlign=TextAlign.Center)
-  SmallButton("⌄",down)
+private fun Stepper(
+ value:String,
+ up:()->Unit,
+ down:()->Unit,
+ requester:FocusRequester?=null,
+ downRequester:FocusRequester?=null,
+ leftRequester:FocusRequester?=null
+){
+ Column(
+  Modifier.width(82.dp).height(72.dp).background(Color(0xDD0A2345),RoundedCornerShape(10.dp)),
+  horizontalAlignment=Alignment.CenterHorizontally
+ ){
+  SmallButton("▲",up,requester,downRequester,leftRequester,font=16.sp)
+  Text(value,color=White,fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.height(28.dp),textAlign=TextAlign.Center)
+  SmallButton("▼",down,font=16.sp)
  }
 }
-@Composable private fun SmallButton(label:String,onClick:()->Unit){FocusButton(label,Modifier.fillMaxWidth().height(18.dp),onClick=onClick,font=16.sp)}
+@Composable
+private fun SmallButton(
+ label:String,
+ onClick:()->Unit,
+ requester:FocusRequester?=null,
+ downRequester:FocusRequester?=null,
+ leftRequester:FocusRequester?=null,
+ font:androidx.compose.ui.unit.TextUnit=16.sp
+){
+ val focusMod = Modifier
+  .then(if(requester!=null) Modifier.focusRequester(requester) else Modifier)
+  .focusProperties {
+   if(downRequester!=null) down = downRequester
+   if(leftRequester!=null) left = leftRequester
+  }
+ FocusButton(label,focusMod.fillMaxWidth().height(22.dp),onClick=onClick,font=font)
+}
 @Composable private fun FocusButton(label:String,modifier:Modifier,primary:Boolean=false,onClick:()->Unit,font: androidx.compose.ui.unit.TextUnit=18.sp){
  var focused by remember{mutableStateOf(false)}
  Surface(onClick=onClick,modifier=modifier.onFocusChanged{focused=it.isFocused}.focusable(),shape=RoundedCornerShape(11.dp),
