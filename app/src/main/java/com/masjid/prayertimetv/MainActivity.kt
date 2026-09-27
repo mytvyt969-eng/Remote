@@ -38,7 +38,7 @@ class MainActivity:ComponentActivity(){
 private fun PrayerTimeApp(){
  val ctx=androidx.compose.ui.platform.LocalContext.current
  val prefs=remember{ctx.getSharedPreferences("prayer_settings",Context.MODE_PRIVATE)}
- fun load()=Defaults.mapIndexed{i,p->p.copy(prefs.getInt("h$i",p.hour),prefs.getInt("m$i",p.minute),prefs.getBoolean("p$i",p.pm))}
+ fun load()=Defaults.mapIndexed{i,p->p.copy(hour=prefs.getInt("h$i",p.hour),minute=prefs.getInt("m$i",p.minute),pm=prefs.getBoolean("p$i",p.pm))}
  var prayers by remember{mutableStateOf(load())}
  var page by remember{mutableIntStateOf(0)}
  var saved by remember{mutableStateOf(false)}
@@ -86,14 +86,14 @@ private fun PrayerEditor(prayers:List<Prayer>,change:(Int,Prayer)->Unit,save:()-
      Text(":",color=White,fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
      Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))})
      Spacer(Modifier.width(10.dp))
-     FocusButton(if(p.pm)"PM" else "AM",Modifier.width(68.dp).height(52.dp)){change(i,p.copy(pm=!p.pm))}
+     FocusButton(if(p.pm)"PM" else "AM",Modifier.width(68.dp).height(52.dp),onClick={change(i,p.copy(pm=!p.pm))})
     }
    }
   }
   Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-   FocusButton("↺  Reset to Default",Modifier.weight(1f).height(55.dp)){reset()}
-   FocusButton(if(saved)"✓  Saved" else "✓  Save Changes",Modifier.weight(1.25f).height(55.dp),true){save()}
-   FocusButton("✕  Cancel",Modifier.weight(1f).height(55.dp)){cancel()}
+   FocusButton("↺  Reset to Default",Modifier.weight(1f).height(55.dp),onClick={reset()})
+   FocusButton(if(saved)"✓  Saved" else "✓  Save Changes",Modifier.weight(1.25f).height(55.dp),primary=true,onClick={save()})
+   FocusButton("✕  Cancel",Modifier.weight(1f).height(55.dp),onClick={cancel()})
   }
   Text(if(saved)"Changes saved successfully" else "↑ ↓ change  •  ← → move between controls  •  OK select",color=if(saved)Color(0xFF7DFFB2) else Dim,fontSize=15.sp,modifier=Modifier.align(Alignment.CenterHorizontally).padding(top=8.dp))
  }
@@ -106,7 +106,7 @@ private fun Stepper(value:String,up:()->Unit,down:()->Unit){
   SmallButton("⌄",down)
  }
 }
-@Composable private fun SmallButton(label:String,onClick:()->Unit){FocusButton(label,Modifier.fillMaxWidth().height(18.dp),false,onClick,font=16.sp)}
+@Composable private fun SmallButton(label:String,onClick:()->Unit){FocusButton(label,Modifier.fillMaxWidth().height(18.dp),onClick=onClick,font=16.sp)}
 @Composable private fun FocusButton(label:String,modifier:Modifier,primary:Boolean=false,onClick:()->Unit,font: androidx.compose.ui.unit.TextUnit=18.sp){
  var focused by remember{mutableStateOf(false)}
  Surface(onClick=onClick,modifier=modifier.onFocusChanged{focused=it.isFocused}.focusable(),shape=RoundedCornerShape(11.dp),
