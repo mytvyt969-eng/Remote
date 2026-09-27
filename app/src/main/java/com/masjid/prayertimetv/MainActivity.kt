@@ -66,7 +66,7 @@ private fun Sidebar(page:Int,onPage:(Int)->Unit){
  Column(Modifier.width(225.dp).fillMaxHeight().background(Color(0xFF071B35)).padding(14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
   Spacer(Modifier.height(8.dp))
   items.forEachIndexed{i,label->
-   FocusButton(label,Modifier.fillMaxWidth().height(52.dp),primary=page==i){onPage(i)}
+   FocusButton(label,Modifier.fillMaxWidth().height(52.dp),primary=page==i,onClick={onPage(i)})
   }
  }
 }
