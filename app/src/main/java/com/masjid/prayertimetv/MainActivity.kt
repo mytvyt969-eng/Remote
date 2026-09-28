@@ -45,7 +45,7 @@ private fun PrayerTimeApp(){
  var prayers by remember{mutableStateOf(load())}
  var page by remember{mutableIntStateOf(0)}
  var saved by remember{mutableStateOf(false)}
- val prayerFocus = remember { List(5) { FocusRequester() } }
+ val prayerFocus = remember { List(20) { FocusRequester() } }
  LaunchedEffect(page) {
   if (page == 0) {
    kotlinx.coroutines.yield()
@@ -92,9 +92,11 @@ private fun PrayerEditor(prayers:List<Prayer>,focusers:List<FocusRequester>,chan
     Row(Modifier.fillMaxWidth().weight(1f).background(card,RoundedCornerShape(15.dp)).padding(horizontal=13.dp),verticalAlignment=Alignment.CenterVertically){
      Text(when(i){0->"☀";1->"☼";2->"◕";3->"☀";else->"☾"},fontSize=30.sp,color=White,modifier=Modifier.width(58.dp))
      Text(p.name,Modifier.weight(1f),color=White,fontSize=23.sp,fontWeight=FontWeight.Bold)
-     Stepper(String.format("%02d",p.hour),{change(i,p.copy(hour=if(p.hour==12)1 else p.hour+1))},{change(i,p.copy(hour=if(p.hour==1)12 else p.hour-1))},focusers[i],if(i<4)focusers[i+1] else null,if(i<4)focusers[i+1] else null)
+     Stepper(String.format("%02d",p.hour),{change(i,p.copy(hour=if(p.hour==12)1 else p.hour+1))},{change(i,p.copy(hour=if(p.hour==1)12 else p.hour-1))},
+      focusers[i*4],focusers[i*4+1],if(i<4)focusers[(i+1)*4] else null,focusers[i*4+2],focusers[i*4+3])
      Text(":",color=White,fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
-     Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))},null,if(i<4)focusers[i+1] else null,focusers[i])
+     Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))},
+      focusers[i*4+2],focusers[i*4+3],focusers[i*4],if(i<4)focusers[(i+1)*4+2] else null,focusers[i*4+4-4])
      Spacer(Modifier.width(10.dp))
      FocusButton(if(p.pm)"PM" else "AM",Modifier.width(68.dp).height(52.dp),onClick={change(i,p.copy(pm=!p.pm))})
     }
@@ -114,35 +116,38 @@ private fun Stepper(
  value:String,
  up:()->Unit,
  down:()->Unit,
- requester:FocusRequester?=null,
- downRequester:FocusRequester?=null,
- leftRequester:FocusRequester?=null
+ upRequester:FocusRequester,
+ downRequester:FocusRequester,
+ nextUpRequester:FocusRequester?,
+ leftUpRequester:FocusRequester?,
+ leftDownRequester:FocusRequester?
 ){
  Column(
-  Modifier.width(82.dp).height(72.dp).background(Color(0xDD0A2345),RoundedCornerShape(10.dp)),
+  Modifier.width(82.dp).height(80.dp).background(Color(0xDD0A2345),RoundedCornerShape(10.dp)),
   horizontalAlignment=Alignment.CenterHorizontally
  ){
-  SmallButton("▲",up,requester,downRequester,leftRequester,font=16.sp)
+  ArrowButton("▲",up,upRequester,downRequester,nextUpRequester,leftUpRequester)
   Text(value,color=White,fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.height(28.dp),textAlign=TextAlign.Center)
-  SmallButton("▼",down,font=16.sp)
+  ArrowButton("▼",down,downRequester,nextUpRequester,null,leftDownRequester)
  }
 }
 @Composable
-private fun SmallButton(
+private fun ArrowButton(
  label:String,
  onClick:()->Unit,
- requester:FocusRequester?=null,
- downRequester:FocusRequester?=null,
- leftRequester:FocusRequester?=null,
- font:androidx.compose.ui.unit.TextUnit=16.sp
+ requester:FocusRequester,
+ downTarget:FocusRequester?,
+ rightTarget:FocusRequester?,
+ leftTarget:FocusRequester?
 ){
- val focusMod = Modifier
-  .then(if(requester!=null) Modifier.focusRequester(requester) else Modifier)
-  .focusProperties {
-   if(downRequester!=null) down = downRequester
-   if(leftRequester!=null) left = leftRequester
+ val focusMod=Modifier
+  .focusRequester(requester)
+  .focusProperties{
+   if(downTarget!=null) down=downTarget
+   if(rightTarget!=null) right=rightTarget
+   if(leftTarget!=null) left=leftTarget
   }
- FocusButton(label,focusMod.fillMaxWidth().height(22.dp),onClick=onClick,font=font)
+ FocusButton(label,focusMod.fillMaxWidth().height(26.dp),onClick=onClick,font=17.sp)
 }
 @Composable private fun FocusButton(label:String,modifier:Modifier,primary:Boolean=false,onClick:()->Unit,font: androidx.compose.ui.unit.TextUnit=18.sp){
  var focused by remember{mutableStateOf(false)}
