@@ -96,7 +96,7 @@ private fun PrayerEditor(prayers:List<Prayer>,focusers:List<FocusRequester>,chan
       focusers[i*4],focusers[i*4+1],if(i<4)focusers[(i+1)*4] else null,focusers[i*4+2],focusers[i*4+3],null,null)
      Text(":",color=White,fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
      Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))},
-      focusers[i*4+2],focusers[i*4+3],focusers[i*4],if(i<4)focusers[(i+1)*4+2] else null,focusers[i*4+4-4])
+      focusers[i*4+2],focusers[i*4+3],if(i<4)focusers[(i+1)*4+2] else null,null,null,focusers[i*4],focusers[i*4+1])
      Spacer(Modifier.width(10.dp))
      FocusButton(if(p.pm)"PM" else "AM",Modifier.width(68.dp).height(52.dp),onClick={change(i,p.copy(pm=!p.pm))})
     }
