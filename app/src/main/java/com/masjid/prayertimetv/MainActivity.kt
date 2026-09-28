@@ -93,7 +93,7 @@ private fun PrayerEditor(prayers:List<Prayer>,focusers:List<FocusRequester>,chan
      Text(when(i){0->"☀";1->"☼";2->"◕";3->"☀";else->"☾"},fontSize=30.sp,color=White,modifier=Modifier.width(58.dp))
      Text(p.name,Modifier.weight(1f),color=White,fontSize=23.sp,fontWeight=FontWeight.Bold)
      Stepper(String.format("%02d",p.hour),{change(i,p.copy(hour=if(p.hour==12)1 else p.hour+1))},{change(i,p.copy(hour=if(p.hour==1)12 else p.hour-1))},
-      focusers[i*4],focusers[i*4+1],if(i<4)focusers[(i+1)*4] else null,focusers[i*4+2],focusers[i*4+3])
+      focusers[i*4],focusers[i*4+1],if(i<4)focusers[(i+1)*4] else null,focusers[i*4+2],focusers[i*4+3],null,null)
      Text(":",color=White,fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=8.dp))
      Stepper(String.format("%02d",p.minute),{change(i,p.copy(minute=(p.minute+1)%60))},{change(i,p.copy(minute=(p.minute+59)%60))},
       focusers[i*4+2],focusers[i*4+3],focusers[i*4],if(i<4)focusers[(i+1)*4+2] else null,focusers[i*4+4-4])
@@ -119,6 +119,8 @@ private fun Stepper(
  upRequester:FocusRequester,
  downRequester:FocusRequester,
  nextUpRequester:FocusRequester?,
+ rightUpRequester:FocusRequester?,
+ rightDownRequester:FocusRequester?,
  leftUpRequester:FocusRequester?,
  leftDownRequester:FocusRequester?
 ){
@@ -126,9 +128,9 @@ private fun Stepper(
   Modifier.width(82.dp).height(80.dp).background(Color(0xDD0A2345),RoundedCornerShape(10.dp)),
   horizontalAlignment=Alignment.CenterHorizontally
  ){
-  ArrowButton("▲",up,upRequester,downRequester,nextUpRequester,leftUpRequester)
+  ArrowButton("▲",up,upRequester,downRequester,rightUpRequester,leftUpRequester)
   Text(value,color=White,fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.height(28.dp),textAlign=TextAlign.Center)
-  ArrowButton("▼",down,downRequester,nextUpRequester,null,leftDownRequester)
+  ArrowButton("▼",down,downRequester,nextUpRequester,rightDownRequester,leftDownRequester)
  }
 }
 @Composable
